@@ -1,0 +1,174 @@
+CarList.cmp
+<aura:component implements="force:appHostable,flexipage:availableForAllPageTypes"
+                extends="c:Base" controller="CarSearchController" access="global" >
+	
+    <aura:attribute name = "data" type = "Object"/>
+    <aura:attribute name = "columns" type = "List"/>
+    
+    <aura:handler name="init" action="{!c.doInit}" value="{!this}"/>
+    
+    <lightning:layout horizontalAlign = "space">
+        <lightning:layoutItem size = "12">
+        	<lightning:datatable columns="{!v.columns}"
+                                 data="{!v.data}"
+                                 keyField="id"
+                                 hideCheckboxColumn="true"
+                                 onrowaction="{!c.handleRowAction}"/>
+        
+        </lightning:layoutItem>   
+    </lightning:layout>               
+</aura:component>
+----------------------------------
+CarListController.js
+({
+	doInit : function(component, event, helper)
+    {
+        component.set('v.columns',[
+            {label: 'Name', fieldName: 'Name',type :'text'},
+            {label: 'Owner', fieldName: 'Owner',type :'text'},
+            {label: 'Build Year', fieldName: 'Build_Year__c',type :'number'},
+            {label: 'Rent/Day', fieldName: 'Per_Day_Rent__c',type :'currency',typeAttributes: {currencyCode: 'USD'}},
+            {label: 'Milage', fieldName: 'Mileage__c',type :'number'},
+            {label: 'Available', fieldName: 'Available_for_Rent__c',type :'boolean'},
+            {label: 'View', type :'button', initialWidth: 135, typeAttributes:
+             {label: 'View details',name:'view_details',title:'Click to view Details'}}
+
+        ]);
+        
+        helper.getCars(component,helper);
+	},
+    
+    handleRowAction:function(component, event, helper)
+    {
+        var action = event.getParam('action');
+        var car = event.getParam('row');
+        switch (action.name)
+        {
+            case 'view_details':
+                helper.showRowDetails(component,helper,car);
+                break;
+            default:
+                helper.showRowDetails(component,helper,car);
+                break;
+        }
+    },
+})
+------------------------
+CarListHelper.js
+({
+	getCars : function(component,helper) 
+    {
+        helper.callserver(component,"c.getAllCars",
+            function(response)
+                          {
+            for (var i=0;i<response.length;i++)
+            {
+                var row=response[i];
+                row.Owner = row.Contact__r.Name;
+            }
+            component.set("v.data",response);
+        });
+	}
+})
+----------------------------------
+OwnerList.cmp
+<aura:component implements="force:appHostable,flexipage:availableForAllPageTypes"
+                extends="c:Base" controller="CarSearchController" access="global" >
+	
+    <aura:attribute name = "data" type = "Object"/>
+    <aura:attribute name = "columns" type = "List"/>
+    <aura:attribute name = "selectedRowsCount" type = "Integer" default="0" />
+    <aura:attribute name = "maxRecordSelection" type = "Integer" default="5" />
+    
+    <aura:handler name="init" action="{!c.doInit}" value="{!this}"/>
+    
+    <lightning:layout horizontalAlign = "space">
+        <lightning:layoutItem size = "12">
+        	<lightning:datatable columns="{!v.columns}"
+                                 data="{!v.data}"
+                                 keyField="id"
+                                 maxRoSelection="{!v.maxRecordSelection}"
+                                 onrowselection="{!c.handleRowAction}"/>
+        
+        </lightning:layoutItem>   
+    </lightning:layout> 
+    <span>
+    	<strong>
+        	Selected Rows : {!v.selectedRowsCount}
+        </strong>
+    </span>
+</aura:component>
+---------------------------------
+OwnerListController.js
+({
+	doInit : function(component, event, helper)
+    {
+        component.set('v.columns',[
+            {label: 'Name', fieldName: 'Name',type :'text'},
+            {label: 'Mail', fieldName: 'Mail',type :'mail'},
+            {label: 'Phone', fieldName: 'Phone',type :'phone'},
+        ]);
+        
+        helper.getContacts(component,helper);
+	},
+})
+---------------------------
+OwnerListHelper.js
+({
+	getContacts : function(component,helper) 
+    {
+        helper.callserver(component,"c.getAllContacts",
+            function(response)
+                          {
+           /* for (var i=0;i<response.length;i++)
+            {
+                var row=response[i];
+                row.Owner = row.Contact__r.Name;
+            }*/
+            component.set("v.data",response);
+        });
+	}
+})
+-------------------------------------
+CarSearchController.apxc
+public class CarSearchController 
+{
+  @AuraEnabled
+    public static List<Car__c> getCars(String carTypeId )
+    {
+        If(carTypeId != null && carTypeId.equalsIgnoreCase(''))
+        {
+           return [SELECT Id, Name, Available_for_Rent__c, Car_Type__c, Picture__c, Contact__c ,
+                   Geolocation__Latitude__s, Geolocation__Longitude__s FROM Car__c
+                  where Available_for_Rent__c = true]; 
+        }
+        else
+        {
+            return [SELECT Id, Name, Available_for_Rent__c, Car_Type__c, Picture__c, Contact__c,
+                    Geolocation__Latitude__s, Geolocation__Longitude__s FROM Car__c
+                  where Car_Type__c = :carTypeId
+                    and Available_For_Rent__c = true]; 
+        } 
+    }
+    
+    @AuraEnabled
+    public static List<Car__c> getAllCars()
+    {
+            return [SELECT Id, Name, Available_for_Rent__c, Car_Type__c, Picture__c, Contact__c,
+                    Description__c,Build_Year__c, Mileage__c,Per_Day_Rent__c,Contact__r.Name,
+                    Geolocation__Latitude__s, Geolocation__Longitude__s FROM Car__c]; 
+    }
+    
+    @AuraEnabled
+    public static List<Contact> getAllContacts()
+    {
+        List<Contact> contacts = new List<Contact>();
+        for(Contact con : [SELECT Id, Name, Phone, Email FROM Contact ])
+        {
+           
+                contacts.add(con);
+           
+        }
+        return contacts;
+    }
+}

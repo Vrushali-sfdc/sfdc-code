@@ -1,0 +1,182 @@
+CarSearchResult.cmp
+<aura:component implements="force:AppHostable" extends="c:Base" controller="CarSearchController" >
+    <aura:attribute name="cars" type = "Car__c[]" access="public"/>
+    <aura:attribute name="carTypeIdComponent" type="String" access="private" default=""/>
+    <aura:attribute name="carFound" type="Boolean" access="private" default="false" />
+    <aura:attribute name = "selectedCarId" type= "Id" access="public"/>
+    
+    <aura:handler name="init"  action="{!c.doInit}" value="{!this}"/>
+    
+    <aura:handler name="onCarSelect" event="c.CarSelect" action="{!c.onCarSelect}" />
+    
+    <aura:method name="searchCars" action ="{!c.doSearch}" access="public">
+        <aura:attribute name = "carTypeId" type = "String" default ="" />
+    </aura:method>
+    
+    <lightning:layout multipleRows= "true" horizontalAlign="center">
+        <aura:if isTrue = "{!v.carFound}">
+            <aura:iteration items="{!v.cars}" var="car">
+                <lightning:layoutItem padding="around-small" size = "12"
+                                      largeDeviceSize="3">
+                 
+                    <c:carTile car= "{#car}" selected= "{! car.Id == v.selectedCarId ? true : false}"/>
+               </lightning:layoutItem>                                          
+            </aura:iteration> 
+             <aura:set attribute="else">
+                 <div class="slds-align_absolute-center">
+                     No cars found
+                 </div>
+            </aura:set>
+        </aura:if>
+       
+    </lightning:layout>
+
+</aura:component>
+---------------------
+carSearchResultController.js
+({
+	doInit : function(component, event, helper)
+    {
+		helper.onSearch(component,helper);
+	},
+    
+    doSearch : function (component,event,helper)
+    {
+        var params= event.getParam('arguments');
+        if (params)
+        {
+            component.set("v.carTypeIdComponent",params.carTypeId);
+            console.log('values are :' +params.carTypeId);
+            helper.onSearch(component,helper);
+        }
+    },
+    
+    onCarSelect : function (component,event,helper)
+    {
+        component.set("v.selectedCarId",event.getParam("carId"));
+    }
+})
+---------------------------------
+carSearchResultHelper.js
+({
+	onSearch : function(component,helper)  
+    {
+        helper.callserver(component,"c.getCars",
+                          function(response)
+                          {
+                          console.log('response is:'  +JSON.stringify(response));
+                          if(response.length > 0)
+                                {
+                                    component.set("v.cars",response);
+                                    component.set("v.carFound",true);
+                                }
+       					 else
+                               {
+           						 component.set("v.carFound",false);
+       						   }	
+                          },
+   						 { carTypeId : component.get("v.carTypeIdComponent")} );
+        console.log('Ans:' +component.get("v.carTypeIdComponent"));
+	}
+})
+------------------------------------------
+CarSearch.cmp
+<aura:component implements="flexipage:availableForRecordHome">
+    
+    <aura:handler name= "searchFormSubmit" event= "c:carSearchSubmit" action= "{!c.doFormSubmit}" />
+    
+    <lightning:card title = "Search your car" class = "bottom-margin">
+        <c:CarSearchForm1/>                      
+    </lightning:card>
+    
+     <lightning:card title = "Manage your car" class = "bottom-margin">
+        <c:CarSearchResult aura:id="carSearchResult"/>                      
+    </lightning:card>
+    
+	
+</aura:component>
+----------------------------
+CarSearchController.js
+({
+	doFormSubmit : function(component, event, helper) 
+    {
+		var carTypeId1 = event.getParam('carTypeID');
+        console.log("Car type id is:" + carTypeId1);
+        
+        var carSearchResultComp = component.find("carSearchResult");
+        //call the aura:method in the child component
+        var carSearchCmpResult = carSearchResultComp.searchCars(carTypeId1);
+        console.log("Results are:" +carSearchCmpResult );
+	}
+})
+----------------------------------
+CarTile.cmp
+<aura:component implements="flexipage:availableForAllPageTypes" access="global">
+	<aura:attribute name="car" type="Object" access ="public"
+                    default = "{'sObjectType' : 'Car__c',
+                               'Name' : 'Manish',
+                               'MyOwnField' : 'My Field Example',
+                               'Picture__c' : '/resources/cars/luxury/ford_mustang.jpeg'}"/> 
+    
+    <aura:attribute name="selected" type= "Boolean" default = "false" access = "public" />
+    
+    <aura:registerEvent name = "onCarSelect" type ="c:CarSelect"/>
+    
+    <lightning:button variant="neutral" class = "{!v.selected ? 'selected tile' : 'tile'  }" onclick = "{!c.OnCarClick}">
+        
+    <div style = "{# 'background-image:url(' +v.car.Picture__c + ')'}" class = "innertile">
+      <div class = "lower-third"    > </div>
+        <h1 class= "slds-truncate">{!v.car.Contact_r.Name}</h1>
+    </div> 
+   </lightning:button> 
+    
+</aura:component>
+---------------------------------------------
+carTileController.js
+({
+	OnCarClick : function(component, event, helper) 
+    {
+		var car= component.get("v.car");
+        var evt = component.getEvent("onCarSelect");
+        evt.setParams({'carId' : car.Id});
+        evt.fire();
+	}
+})
+--------------------------
+carTile.css
+.THIS.tile{
+    position:relative;
+    display:inline-block;
+    width:100%;
+    height:220px;
+    padding: 1px ;
+}
+
+.THIS .innertile {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    width: 100%;
+    height: 100%;    
+}
+
+.THIS .lower-third{
+    position: absolute;
+    bottom: 0;
+    left : 0;
+    right: 0;
+    color : #FFFFFF;
+    background-color:rgba(0,0, .4);
+    padding: 6px 8px;
+}
+
+.THIS.selected
+{
+    border : 3px solid rgb(0,112,210);
+}
+-----------------------------
+CarSeelect - event
+<aura:event type="COMPONENT" description="Event template">
+    <aura:attribute type = "Id" name="carId" />
+</aura:event>    
+

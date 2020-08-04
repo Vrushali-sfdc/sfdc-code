@@ -1,0 +1,166 @@
+CreateContactwithAccount.cmp
+<aura:component implements="force:lightningQuickActionWithoutHeader, force:hasRecordId" controller="ContactRecordTypeSelector">
+	
+    <aura:attribute name="listOfRecordTypes" type="String[]" />
+    <aura:attribute name="mapOfRcordType" type="Map"/>
+    
+    <aura:handler name="init" value ="{!this}" action="{!c.fetchListOfRecordTypes}" />
+    
+    <lightning:layout multipleRows="true" horizontalAlign="center">
+        
+    	<lightning:layoutItem flexibility="auto" padding="around-small"
+                              size="12" largeDeviceSize="12">
+            
+            <lightning:formattedText value="Select a contact record type"/>
+        </lightning:layoutItem>
+        
+        <lightning:layoutItem flexibility="auto" padding="around-small"
+                              size="12" largeDeviceSize="12">
+            
+            <lightning:select aura:id="recordTypePickList" name="selectRecordTypes"
+                              label="Select a record type">
+                <option value= "" text= "Select a record type"/>
+                <aura:iteration items="{!v.listOfRecordTypes}" var="item">
+                    <option value="{!item}" text="{!item}"/>
+                </aura:iteration>
+            </lightning:select>           
+        </lightning:layoutItem>
+        
+        <lightning:layoutItem flexibility="auto" padding="around-small"
+                              size="3" largeDeviceSize="6">
+            <lightning:button variant="brand" label="Next" onclick="{!c.CreateRecord}"/>           
+        </lightning:layoutItem>
+        
+        <lightning:layoutItem flexibility="auto" padding="around-small"
+                              size="3" largeDeviceSize="6">
+            <lightning:button variant="neutral" label="Cancel" onclick="{!c.CloseModal}"/>
+            
+        </lightning:layoutItem>
+    </lightning:layout>
+    
+</aura:component>
+-----------------------------
+CreateContactwithAccountController.js
+({
+	fetchListOfRecordTypes : function(component, event, helper) 
+    {
+        var action = component.get("c.getRecordInfo") ;
+        action.setParams({
+            "objectName": "Contact"});
+        action.setCallback(this,function(response) {
+            var mapOfRcordTypes = response.getReturnValue();
+            component.set("v.mapOfRcordType",mapOfRcordTypes);  
+            
+        var recordTypeList= [];
+        for (var key in mapOfRcordTypes)
+        {
+            recordTypeList.push(mapOfRcordTypes[key]);
+        }
+       
+        if (recordTypeList.length == 0)
+        {
+            helper.closeModal();
+            helper.showCreateRecordModal(component,'',"Contact");
+        }
+        else
+        {
+            component.set("v.listOfRecordTypes",recordTypeList);
+        }
+     });
+        $A.enqueueAction(action);
+	},
+    
+    CreateRecord : function( component,event,helper, sObjectRecord)
+    {
+        var selectedRecordTypeName = component.find("recordTypePickList").get("v.value");
+        console.log('selectedRecordTypeName:' +selectedRecordTypeName);
+        
+        if (selectedRecordTypeName != "")
+        {
+            var selectedRecordTypeMap = component.get("v.mapOfRcordType");            
+            var selectedRecordTypeId;
+            for (var key in selectedRecordTypeMap)
+            {
+                if (selectedRecordTypeName == selectedRecordTypeMap[key])
+                {
+                    selectedRecordTypeId = key;
+                    break;
+                }
+            }
+            helper.closeModal();
+            helper.showCreateRecordModal(component,selectedRecordTypeId,"Contact");
+        }
+        else
+        {
+            alert('You did not select any record type');
+        }
+    }
+})
+--------------------------------------
+CreateContactwithAccountHelper.js
+({
+	showCreateRecordModal : function(component,recordTypeId,entityApiName) 
+    {
+        var createRecordEvent = $A.get("e.force:createRecord");
+        if (createRecordEvent)
+        {
+            if (recordTypeId)
+            {
+                createRecordEvent.setParams({
+                    "entityApiName" : entityApiName,
+                    "recordTypeId" : recordTypeId,
+                    "defaultFieldValues" : { "AccountId" : component.get("v.recordId")}
+                });
+            }
+            else
+            {
+                createRecordEvent.setParams({
+                    "entityApiName" : entityApiName,
+                    "defaultFieldValues" : { "AccountId" : component.get("v.recordId")}
+            });
+            }
+            createRecordEvent.fire();
+        }
+        else
+        {
+            alert ('This event is not supported');
+        }
+    },
+    
+    closeModal : function ()
+    {
+        var closeEvent = $A.get("e.force:closeQuickAction");
+        if (closeEvent)
+        {
+            closeEvent.fire();
+        }
+        else
+        {
+            alert('CloseQuickAction is not supported.');
+        }
+    }
+})
+---------------------------
+ContactRecordTypeSelector.apxc
+public class ContactRecordTypeSelector 
+{
+    public static Map<Id,String> recordtypemap ;
+	@AuraEnabled
+    public static Map<Id,String> getRecordInfo(String objectName)
+    {
+        
+        List<Schema.RecordTypeInfo> recordTypes=Schema.getGlobalDescribe().get(objectName).getDescribe().getRecordTypeInfos();
+        recordtypemap = new Map<Id,String>();
+        
+        for (RecordTypeInfo rt : recordTypes)
+        {
+            if(rt.getName() != 'Master' && rt.getName().trim() != '')
+            {
+                recordtypemap.put(rt.getRecordTypeId(),rt.getName());
+                
+            }
+        }
+        //system.debug('***mapofCaseRecordTypeNameandId*'+recordtypemap);
+        return recordtypemap;
+    }
+}

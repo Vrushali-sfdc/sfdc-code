@@ -1,0 +1,146 @@
+CarSearchForm1.cmp
+<aura:component controller ="CarTypeSearch" extends ="c:Base" implements="flexipage:availableForRecordHome,force:hasRecordId"  >
+    
+    <aura:attribute name="searchCar" type="String" default="Search car" />
+    <aura:attribute name="newCar" type="String" default="New Car"/>
+    <aura:attribute type="Boolean" name="showNew" default="false"/>     
+    <aura:attribute name="carType" type= "Car_Type__c[]"  />    
+    
+     <aura:handler name = "init" value="{!this}" action="{!c.doInit}"/>
+    <aura:registerEvent name ="searchFormSubmit" type = "c:carSearchSubmit" />
+    
+       <lightning:layout horizontalAlign="center">
+        	<lightning:layoutItem padding="around-medium">                 
+                
+                <lightning:select name ="selectItem" label="Select a Car" aura:Id ="selectItem" variant="label-hidden" value="" >
+                     <option value ="" text="All Types" />
+                         <aura:iteration items="{!v.carType}" var="carTypes">
+                              <option value="{!carTypes.Id}" text="{!carTypes.Name}"/> 
+                         </aura:iteration>                  
+                </lightning:select> 
+                
+            </lightning:layoutItem> 
+         
+            <lightning:layoutItem padding="around-medium">          	
+                <lightning:button label="{!v.searchCar}" onclick= "{!c.onSearchClick}" variant="brand" />                 
+                      <aura:if isTrue="{!v.showNew}">
+                            <lightning:button label="{#v.newCar}" variant="neutral" onclick = "{!c.CreateRecord}"> </lightning:button>                        
+                      </aura:if> 
+           </lightning:layoutItem>                                       
+       </lightning:layout>
+</aura:component>
+-------------------------------------
+CarSearchForm1Controller.js
+({
+	doInit : function(component, event, helper)
+    {
+        var crateCarRecord = $A.get("e.force:createRecord");
+        if (crateCarRecord)
+        {
+            component.set("v.showNew",true);
+            console.log("ifdone");
+        }
+        else
+        {
+            component.set("v.showNew",false);
+            console.log("Button can not seen here");
+        }
+        helper.getCarTypes(component, event, helper);
+        console.log("done");
+},
+    
+    CreateRecord : function(component, event, helper) 
+    {
+        var CrateCarRecord = $A.get("e.force:createRecord");
+        CrateCarRecord.setParams({
+        "entityApiName" : "Car_Type__c" }) ;
+    	CrateCarRecord.fire();
+	},
+    
+    onSearchClick: function (component,event,helper)
+    {
+        var searchFormSubmit = component.getEvent("searchFormSubmit");
+        console.log("valus is:" +component.find("selectItem").get("v.value"));
+        searchFormSubmit.setParams({"carTypeID" : component.find("selectItem").get("v.value")});
+        searchFormSubmit.fire();                          
+    }
+    
+})
+--------------------------
+CarSearchForm1ControllerHelpr.js --> no change
+----------------------------
+CarTile.cmp
+<aura:component implements="flexipage:availableForAllPageTypes" access="global">
+	<aura:attribute name="car" type="Object" access ="public"
+                    default = "{'sObjectType' : 'Car__c',
+                               'Name' : 'Manish',
+                               'MyOwnField' : 'My Field Example',
+                               'Picture__c' : '/resources/cars/luxury/ford_mustang.jpeg'}"/> 
+    
+    
+    <lightning:button variant="neutral" class = "tile">
+    <div style = "{# 'background-image:url(' +v.car.Picture__c + ')'}" class = "innertile">
+      <div class = "lower-third"    > </div>
+        <h1 class= "slds-truncate">{!v.car.Contact_r.Name}</h1>
+    </div> 
+   </lightning:button> 
+    
+</aura:component>
+---------------------
+carTile.css
+.THIS.tile{
+    position:relative;
+    display:inline-block;
+    width:100%;
+    height:220px;
+    padding: 1px ;
+}
+
+.THIS .innertile {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    width: 100%;
+    height: 100%;    
+}
+
+.THIS .lower-third{
+    position: absolute;
+    bottom: 0;
+    left : 0;
+    right: 0;
+    color : #FFFFFF;
+    background-color:rgba(0,0, .4);
+    padding: 6px 8px;
+}
+------------
+carTileControllr & helper --> no code
+---------------
+CarSearch.cmp
+<aura:component implements="flexipage:availableForRecordHome">
+    
+    <aura:handler name= "searchFormSubmit" event= "c:carSearchSubmit" action= "{!c.doFormSubmit}" />
+    
+    <lightning:card title = "Search your car" class = "bottom-margin">
+        <c:CarSearchForm1/>                      
+    </lightning:card>
+    
+	
+</aura:component>
+-------------------------------
+carSearchController.js
+({
+	doFormSubmit : function(component, event, helper) 
+    {
+		var carTypeId = event.getParam('carTypeID');
+        console.log("Car type id is:" + carTypeId);
+	}
+})
+------------------
+carSearchHlper.js-> no code
+--------------
+RentACar.app
+<aura:application extends="force:slds" >
+    <c:CarSearch />
+    <c:CarTile/>
+</aura:application>

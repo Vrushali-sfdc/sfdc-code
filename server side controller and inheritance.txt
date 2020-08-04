@@ -1,0 +1,147 @@
+CarSearchForm1.cmp
+<aura:component controller ="CarTypeSearch" extends ="c:Base" implements="flexipage:availableForRecordHome,force:hasRecordId"  >
+    
+    <aura:attribute name="searchCar" type="String" default="Search car" />
+    <aura:attribute name="newCar" type="String" default="New Car"/>
+    <aura:attribute type="Boolean" name="showNew" default="false"/>     
+    <aura:attribute name="carType" type= "Car_Type__c[]"  />    
+    
+     <aura:handler name = "init" value="{!this}" action="{!c.doInit}"/>
+    
+       <lightning:layout horizontalAlign="center">
+        	<lightning:layoutItem padding="around-medium">                 
+                
+                <lightning:select name ="selectItem" label="Select a Car" aura:Id ="selectItem" variant="label-hidden" value=""
+                                  onchange = "{!c.newValue}">
+                     <option value ="" text="All Types" />
+                         <aura:iteration items="{!v.carType}" var="carTypes">
+                              <option value="{!carTypes.Id}" text="{!carTypes.Name}"/> 
+                         </aura:iteration>                  
+                </lightning:select> 
+                
+            </lightning:layoutItem> 
+         
+            <lightning:layoutItem padding="around-medium">          	
+               <!-- <lightning:button label="Search" variant="brand"> </lightning:button> -->
+                <lightning:button label="{!v.searchCar}" onclick= "{!c.myAction}" variant="brand" />                 
+                      <aura:if isTrue="{!v.showNew}">
+                            <lightning:button label="{#v.newCar}" variant="neutral" onclick = "{!c.CreateRecord}"> </lightning:button>                        
+                      </aura:if> 
+           </lightning:layoutItem>                                       
+       </lightning:layout>
+</aura:component>
+------------------------------------------
+CarSearchFrom1Controller.js
+({
+	doInit : function(component, event, helper)
+    {
+        var crateCarRecord = $A.get("e.force:createRecord");
+        if (crateCarRecord)
+        {
+            component.set("v.showNew",true);
+            console.log("ifdone");
+        }
+        else
+        {
+            component.set("v.showNew",false);
+            console.log("Button can not seen here");
+        }
+        helper.getCarTypes(component, event, helper);
+        console.log("done");
+},
+    
+    CreateRecord : function(component, event, helper) 
+    {
+        var CrateCarRecord = $A.get("e.force:createRecord");
+        CrateCarRecord.setParams({
+        "entityApiName" : "Car_Type__c" }) ;
+    	CrateCarRecord.fire();
+	},
+    
+    myAction : function(component, event, helper) 
+    {
+		helper.onclickhelperMethod(component, event, helper) ;
+	},
+    
+    newValue : function(component, event, helper) 
+    {
+       /*var selectValue = component.find('selectItem').get("v.text"); */
+        var selectValue = event.getSource().get("v.value");
+        alert(selectValue + ' Option get selected.')
+    }
+    
+    
+})
+-----------------------------
+CarSearchForm1helper.js
+({
+	onclickhelperMethod : function(component, event, helper) 
+    {
+		alert('Search button was fired.');
+	},
+    
+    getCarTypes : function(component, event, helper)
+    {
+        /*var action = component.get("c.getCarTypes");
+        action.setCallback(this,function(data)
+        {
+        	var state = data.getState();
+            if (state === "SUCCESS")
+            {
+               component.set("v.carType",data.getReturnValue()); 
+                //console.log("values are:" +JSON.stringfy(data.getReturnValue()));
+            }
+        	else if (state === "ERROR")
+        {
+            alert("unknown error");
+        }
+        });*/
+
+        //Above code is commented to user Basehelper code - Inheritance
+    
+        helper.callserver(component,"c.getCarTypes",function(response){component.set("v.carType",response)});
+    }
+})
+---------------------
+Base.cmp
+<aura:component extensible="true">
+	{!v.body}
+</aura:component>
+------------------
+BaseHelper.js
+({
+	callserver : function(component,method,callback,params) 
+    {
+		var action = component.get(method);
+        if(params)
+        {
+            action.setParams(params);
+        }
+        action.setCallback(this,function(response)
+                           {
+                               var state = response.getState();
+                               if(state === "SUCCESS")
+                               {
+                                   component.set("v.carType",response.getReturnValue());
+                               }
+                               else if (state === "ERROR")
+                               {
+                                   var error = response.getError();
+                                   if (error)
+                                   {
+                                       console.log("Errors:",errors);
+                                       if (errors[0] && errors[0].message)
+                                       {
+                                           throw new Error ("Error:" +errors[0].message);
+                                       }
+                                   }
+                               }
+                               else
+                               {
+                                   throw new Error ("Unknown Error");
+                               }
+                           });
+        $A.enqueueAction(action);
+	}
+})
+------------
